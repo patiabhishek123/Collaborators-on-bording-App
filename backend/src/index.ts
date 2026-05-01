@@ -1,7 +1,8 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+dotenv.config();
 import express from "express";
 import { createNodeMiddleware } from "@octokit/webhooks";
-import { webhooks } from "./webhookHandler";
+import { webhooks } from "./webhookHandler.js";
 
 const appId = process.env.GITHUB_APP_ID;
 
