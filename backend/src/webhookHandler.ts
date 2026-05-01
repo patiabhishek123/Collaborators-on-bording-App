@@ -11,6 +11,7 @@ webhooks.on("pull_request.opened", async ({ payload }) => {
   const prNumber = payload.pull_request.number;
   const repositoryName = payload.repository.full_name;
   const authorUsername = payload.pull_request.user.login;
+  const latestCommitSha = payload.pull_request.head.sha;
   // Installation ID ties this webhook event to a specific GitHub App installation
   const installationId = payload.installation?.id;
 
@@ -46,8 +47,24 @@ webhooks.on("pull_request.opened", async ({ payload }) => {
       const message = commit.message.split("\n")[0]; // first line only
       console.log(`  - SHA: ${shortSha} | Author: ${email} | Message: ${message}`);
     }
+
+    await octokit.repos.createCommitStatus({
+      owner,
+      repo,
+      sha: latestCommitSha,
+      state: "success",
+      description: "Basic identity check passed (mock)",
+      context: "hiero-identity-verification",
+    });
+
+    console.log(
+      `[pull_request.opened] Posted status check to ${latestCommitSha.slice(
+        0,
+        7
+      )} with context hiero-identity-verification`
+    );
   } catch (err) {
-    console.error("[pull_request.opened] Failed to fetch commits:", err);
+    console.error("[pull_request.opened] Failed to process PR opened event:", err);
   }
 });
 
