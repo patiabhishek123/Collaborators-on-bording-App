@@ -1,15 +1,6 @@
-import { Webhooks } from "@octokit/webhooks";
-import { Octokit } from "@octokit/rest";
+import { githubApp, getInstallationOctokit } from "./githubApp.js";
 
-const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
-
-if (!webhookSecret) {
-  throw new Error("Missing required env var: GITHUB_WEBHOOK_SECRET");
-}
-
-export const webhooks = new Webhooks({
-  secret: webhookSecret,
-});
+export const webhooks = githubApp.webhooks;
 
 webhooks.onAny(({ id, name, payload }) => {
   const repoName = "repository" in payload ? payload.repository?.full_name : "unknown-repo";
@@ -20,7 +11,8 @@ webhooks.on("pull_request.opened", async ({ payload }) => {
   const prNumber = payload.pull_request.number;
   const repositoryName = payload.repository.full_name;
   const authorUsername = payload.pull_request.user.login;
-  const installationToken = process.env.GITHUB_INSTALLATION_TOKEN;
+  // Installation ID ties this webhook event to a specific GitHub App installation
+  const installationId = payload.installation?.id;
 
   console.log(
     [
@@ -31,12 +23,13 @@ webhooks.on("pull_request.opened", async ({ payload }) => {
     ].join(" ")
   );
 
-  if (!installationToken) {
-    console.warn("[pull_request.opened] Skipping commit fetch: GITHUB_INSTALLATION_TOKEN not set");
+  if (!installationId) {
+    console.warn("[pull_request.opened] Skipping commit fetch: installation ID missing from payload");
     return;
   }
 
-  const octokit = new Octokit({ auth: installationToken });
+  // Generates (and caches) an installation access token via GitHub App private key
+  const octokit = await getInstallationOctokit(installationId);
   const [owner, repo] = repositoryName.split("/");
 
   try {
